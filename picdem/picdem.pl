@@ -34,9 +34,10 @@ use IO::File;
 		'write'		=> 'file',
 		'wait'		=> undef,
 		'leds'		=> undef,
+		'wizard'	=> 'file',
 	};
 
-	print "picdem.pl 1.0 - 20111126\n";
+	print "picdem.pl 1.1 - 20111127\n";
 	print "Copyright (C) 2005-11 Tower Technologies, written by Alessandro Zummo,\n";
 	print "licensed under the GPL. Feedback to a.zummo\@towertech.it.\n\n";
 
@@ -54,6 +55,7 @@ use IO::File;
 		exitwhelp("Unknown command: $cmd\n")
 			unless grep { $cmd eq $_ } keys %$commands;
 
+		# fetch command option if required
 		my $what = shift @cmds
 			if defined $commands->{$cmd};
 
@@ -66,7 +68,7 @@ use IO::File;
 			join(',', @{$commands->{$cmd}}), "\n"
 		)
 		if ref($commands->{$cmd}) eq 'ARRAY'
-		and not grep { defined $what and $what eq $_ } @{$commands->{$cmd}};
+			and not grep { defined $what and $what eq $_ } @{$commands->{$cmd}};
 
 		exitwhelp("Missing filename\n")
 			if defined $commands->{$cmd}
@@ -116,13 +118,14 @@ use IO::File;
 		my $what = shift
 			if defined $commands->{$cmd};
 
-		job($dev, $cmd, $what);
+		my $rc = job($dev, $cmd, $what);
+		last if $rc == 0;
 	}
 
 	# leds off
 	# (unless the last command was a reset).
 
-	if ($cmd ne 'reset') {
+	if ($cmd ne 'reset' && $cmd ne 'wizard') {
 		picdem_update_led($dev, 3, 0);
 		picdem_update_led($dev, 4, 0);
 	}
@@ -141,6 +144,15 @@ sub job
 	print $cmd;
 	print ' ', $what if defined $what;
 	print "\n";
+
+	if ($cmd eq 'wizard') {
+		job($handle, 'wait');
+		job($handle, 'erase', 'smart');
+		job($handle, 'write', $what);
+		job($handle, 'reset');
+
+		return 0;
+	}
 
 	if ($cmd eq 'dump') {
 		picdem_dump_userid($handle)	if $what eq 'userid';
@@ -183,6 +195,8 @@ sub job
 	picdem_leds($handle)	if $cmd eq 'leds';
 
 	print "\n";
+
+	return 1;
 }
 
 sub exitwhelp
