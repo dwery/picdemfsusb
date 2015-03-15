@@ -1,0 +1,1 @@
+This project contains code to work with the Microchip PICDEMFSUSB board.
